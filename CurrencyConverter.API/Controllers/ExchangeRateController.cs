@@ -26,5 +26,16 @@ namespace CurrencyConverter.API.Controllers
             ExchangeRate exchangeRate = await _exchangeRateService.GetLatestRatesAsync(baseCurrency, cancellationToken);
             return Ok(exchangeRate);
         }
+
+        [HttpGet("latest-range")]
+        public async Task<ActionResult<ExchangeRateTimeSeries>> GetLatestRates(
+            [FromQuery, Required] string baseCurrency,
+            [FromQuery, Required] DateOnly startDate,
+            [FromQuery, Required] DateOnly endDate,
+            CancellationToken cancellationToken)
+        {
+            ExchangeRateTimeSeries exchangeRate = await _exchangeRateService.GetLatestRatesAsync(startDate, endDate, baseCurrency, cancellationToken);
+            return Ok(exchangeRate);
+        }
     }
 }

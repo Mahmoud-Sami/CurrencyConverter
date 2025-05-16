@@ -28,7 +28,7 @@ namespace CurrencyConverter.Infrastructure.ExchangeRateProviders.Frankfurter
             {
                 try
                 {
-                    HttpResponseMessage httpResponse = await client.GetAsync(BaseUrl + $"/v1/latest?base={baseCurrency}");
+                    HttpResponseMessage httpResponse = await client.GetAsync(BaseUrl + $"/v1/latest?base={baseCurrency}", cancellationToken);
                     httpResponse.EnsureSuccessStatusCode();
 
                     string responseBody = await httpResponse.Content.ReadAsStringAsync();
@@ -39,6 +39,48 @@ namespace CurrencyConverter.Infrastructure.ExchangeRateProviders.Frankfurter
                     {
                         BaseCurrency = response.Base,
                         Date = response.Date,
+                        Rates = response.Rates
+                    };
+
+                    return exchangeRate;
+                }
+                catch (HttpRequestException e)
+                {
+                    Console.WriteLine($"Request error: {e.Message}");
+                    throw;
+                }
+            }
+        }
+
+        public async Task<ExchangeRateTimeSeries> GetHistoricalRatesAsync(
+            DateOnly startDate,
+            DateOnly endDate,
+            string baseCurrency,
+            CancellationToken cancellationToken = default)
+        {
+            _logger.LogInformation(
+                "Requesting historical rates from Frankfurter API for period {StartDate} to {EndDate} with base currency {BaseCurrency}",
+                startDate.ToString("yyyy-MM-dd"),
+                endDate.ToString("yyyy-MM-dd"),
+                baseCurrency);
+
+            using (HttpClient client = new HttpClient())
+            {
+                try
+                {
+                    HttpResponseMessage httpResponse = await client.GetAsync(BaseUrl + $"/v1/{startDate:yyyy-MM-dd}..{endDate:yyyy-MM-dd}?from={baseCurrency}", cancellationToken);
+                    httpResponse.EnsureSuccessStatusCode();
+
+                    string responseBody = await httpResponse.Content.ReadAsStringAsync();
+
+                    FrankfurterTimeSeriesResponse? response = JsonSerializer.Deserialize<FrankfurterTimeSeriesResponse>(responseBody);
+
+                    ExchangeRateTimeSeries exchangeRate = new()
+                    {
+                        Amount = response.Amount,
+                        Base = response.Base,
+                        StartDate = response.StartDate,
+                        EndDate = response.EndDate,
                         Rates = response.Rates
                     };
 
