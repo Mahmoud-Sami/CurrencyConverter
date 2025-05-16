@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using CurrencyConverter.Core.Services;
 using CurrencyConverter.Core.Abstractions;
 using CurrencyConverter.Infrastructure.ExchangeRateProviders.Frankfurter;
+using Polly;
 
 namespace CurrencyConverter.API
 {
@@ -31,9 +32,17 @@ namespace CurrencyConverter.API
                 );
             });
 
+            
+
             builder.Services.AddScoped<ExchangeRateService>();
             builder.Services.AddScoped<IExchangeRateProvider, FrankfurterExchangeRateProvider>();
 
+            builder.Services.AddHttpClient<IExchangeRateProvider, FrankfurterExchangeRateProvider>(c =>
+            {
+                c.DefaultRequestVersion = new Version(3, 0);
+            }).AddTransientHttpErrorPolicy(policy => policy.WaitAndRetryAsync(3, _ => TimeSpan.FromSeconds(5)));
+
+            
             var app = builder.Build();
 
             // Configure the HTTP request pipeline.

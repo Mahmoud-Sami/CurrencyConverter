@@ -1,6 +1,4 @@
-﻿using System;
-using System.Net.Http.Json;
-using System.Text.Json;
+﻿using System.Text.Json;
 using CurrencyConverter.Core.Abstractions;
 using CurrencyConverter.Core.Entities;
 using Microsoft.Extensions.Logging;
@@ -15,41 +13,38 @@ namespace CurrencyConverter.Infrastructure.ExchangeRateProviders.Frankfurter
 
         public string ProviderName => "Frankfurter";
 
-        public FrankfurterExchangeRateProvider(ILogger<FrankfurterExchangeRateProvider> logger)
+        public FrankfurterExchangeRateProvider(HttpClient httpClient, ILogger<FrankfurterExchangeRateProvider> logger)
         {
-            _httpClient = new HttpClient();
-            _httpClient.BaseAddress = new Uri(BaseUrl);
-            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            _httpClient = httpClient;
+            _logger = logger;
         }
 
         public async Task<ExchangeRate?> GetLatestRatesAsync(string baseCurrency, CancellationToken cancellationToken = default)
         {
-            using (HttpClient client = new HttpClient())
+            try
             {
-                try
+                HttpResponseMessage httpResponse = await _httpClient.GetAsync(BaseUrl + $"/v1/latest?base={baseCurrency}", cancellationToken);
+                httpResponse.EnsureSuccessStatusCode();
+
+                string responseBody = await httpResponse.Content.ReadAsStringAsync();
+
+                FrankfurterResponse? response = JsonSerializer.Deserialize<FrankfurterResponse>(responseBody);
+
+                ExchangeRate exchangeRate = new()
                 {
-                    HttpResponseMessage httpResponse = await client.GetAsync(BaseUrl + $"/v1/latest?base={baseCurrency}", cancellationToken);
-                    httpResponse.EnsureSuccessStatusCode();
+                    BaseCurrency = response.Base,
+                    Date = response.Date,
+                    Rates = response.Rates
+                };
 
-                    string responseBody = await httpResponse.Content.ReadAsStringAsync();
-
-                    FrankfurterResponse? response = JsonSerializer.Deserialize<FrankfurterResponse>(responseBody);
-
-                    ExchangeRate exchangeRate = new()
-                    {
-                        BaseCurrency = response.Base,
-                        Date = response.Date,
-                        Rates = response.Rates
-                    };
-
-                    return exchangeRate;
-                }
-                catch (HttpRequestException e)
-                {
-                    Console.WriteLine($"Request error: {e.Message}");
-                    throw;
-                }
+                return exchangeRate;
             }
+            catch (HttpRequestException e)
+            {
+                Console.WriteLine($"Request error: {e.Message}");
+                throw;
+            }
+
         }
 
         public async Task<ExchangeRateTimeSeries> GetHistoricalRatesAsync(
@@ -64,34 +59,33 @@ namespace CurrencyConverter.Infrastructure.ExchangeRateProviders.Frankfurter
                 endDate.ToString("yyyy-MM-dd"),
                 baseCurrency);
 
-            using (HttpClient client = new HttpClient())
+
+            try
             {
-                try
+                HttpResponseMessage httpResponse = await _httpClient.GetAsync(BaseUrl + $"/v1/{startDate:yyyy-MM-dd}..{endDate:yyyy-MM-dd}?from={baseCurrency}", cancellationToken);
+                httpResponse.EnsureSuccessStatusCode();
+
+                string responseBody = await httpResponse.Content.ReadAsStringAsync();
+
+                FrankfurterTimeSeriesResponse? response = JsonSerializer.Deserialize<FrankfurterTimeSeriesResponse>(responseBody);
+
+                ExchangeRateTimeSeries exchangeRate = new()
                 {
-                    HttpResponseMessage httpResponse = await client.GetAsync(BaseUrl + $"/v1/{startDate:yyyy-MM-dd}..{endDate:yyyy-MM-dd}?from={baseCurrency}", cancellationToken);
-                    httpResponse.EnsureSuccessStatusCode();
+                    Amount = response.Amount,
+                    Base = response.Base,
+                    StartDate = response.StartDate,
+                    EndDate = response.EndDate,
+                    Rates = response.Rates
+                };
 
-                    string responseBody = await httpResponse.Content.ReadAsStringAsync();
-
-                    FrankfurterTimeSeriesResponse? response = JsonSerializer.Deserialize<FrankfurterTimeSeriesResponse>(responseBody);
-
-                    ExchangeRateTimeSeries exchangeRate = new()
-                    {
-                        Amount = response.Amount,
-                        Base = response.Base,
-                        StartDate = response.StartDate,
-                        EndDate = response.EndDate,
-                        Rates = response.Rates
-                    };
-
-                    return exchangeRate;
-                }
-                catch (HttpRequestException e)
-                {
-                    Console.WriteLine($"Request error: {e.Message}");
-                    throw;
-                }
+                return exchangeRate;
             }
+            catch (HttpRequestException e)
+            {
+                Console.WriteLine($"Request error: {e.Message}");
+                throw;
+            }
+
         }
     }
 }
