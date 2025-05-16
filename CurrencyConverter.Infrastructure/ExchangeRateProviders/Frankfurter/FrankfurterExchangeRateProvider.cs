@@ -1,6 +1,7 @@
 ﻿using System.Text.Json;
 using CurrencyConverter.Core.Abstractions;
 using CurrencyConverter.Core.Entities;
+using CurrencyConverter.Core.Exceptions;
 using Microsoft.Extensions.Logging;
 
 namespace CurrencyConverter.Infrastructure.ExchangeRateProviders.Frankfurter
@@ -24,7 +25,11 @@ namespace CurrencyConverter.Infrastructure.ExchangeRateProviders.Frankfurter
             try
             {
                 HttpResponseMessage httpResponse = await _httpClient.GetAsync(BaseUrl + $"/v1/latest?base={baseCurrency}", cancellationToken);
-                httpResponse.EnsureSuccessStatusCode();
+                
+                if (httpResponse.StatusCode == System.Net.HttpStatusCode.NotFound)
+                {
+                    throw new UnsupportedCurrencyException(baseCurrency);
+                }
 
                 string responseBody = await httpResponse.Content.ReadAsStringAsync();
 
@@ -41,7 +46,6 @@ namespace CurrencyConverter.Infrastructure.ExchangeRateProviders.Frankfurter
             }
             catch (HttpRequestException e)
             {
-                Console.WriteLine($"Request error: {e.Message}");
                 throw;
             }
 

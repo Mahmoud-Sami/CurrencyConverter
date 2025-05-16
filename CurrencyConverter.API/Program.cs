@@ -47,7 +47,8 @@ namespace CurrencyConverter.API
             }).AddTransientHttpErrorPolicy(policy => policy.WaitAndRetryAsync(3, _ => TimeSpan.FromSeconds(5)))
               .AddTransientHttpErrorPolicy(policy => policy.CircuitBreakerAsync(5, TimeSpan.FromSeconds(30)));
 
-             
+            builder.Services.AddScoped<GlobalExceptionHandler>();
+
             var app = builder.Build();
 
             // Configure the HTTP request pipeline.
@@ -60,6 +61,8 @@ namespace CurrencyConverter.API
             app.UseHttpsRedirection();
             
             app.UseMiddleware<RequestLoggingMiddleware>();
+
+            app.UseMiddleware<GlobalExceptionHandler>();
 
             app.UseAuthorization();
 
