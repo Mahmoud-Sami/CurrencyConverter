@@ -40,9 +40,10 @@ namespace CurrencyConverter.API
             builder.Services.AddHttpClient<IExchangeRateProvider, FrankfurterExchangeRateProvider>(c =>
             {
                 c.DefaultRequestVersion = new Version(3, 0);
-            }).AddTransientHttpErrorPolicy(policy => policy.WaitAndRetryAsync(3, _ => TimeSpan.FromSeconds(5)));
+            }).AddTransientHttpErrorPolicy(policy => policy.WaitAndRetryAsync(3, _ => TimeSpan.FromSeconds(5)))
+              .AddTransientHttpErrorPolicy(policy => policy.CircuitBreakerAsync(5, TimeSpan.FromSeconds(30)));
 
-            
+             
             var app = builder.Build();
 
             // Configure the HTTP request pipeline.
